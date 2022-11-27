@@ -1,5 +1,6 @@
 package example.template;
 
+//TestTest12345$ - password
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
@@ -9,14 +10,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.sql.*;
+import java.util.*;
 
 import static java.rmi.server.LogStream.log;
 
@@ -24,7 +19,7 @@ public class Searcher {
     public static void main(String[] args) throws InterruptedException {
         Deque<String> urls = new LinkedList<>();
         urls.add("https://www.kpi.kharkov.ua");
-
+        getConnection();
         while (urls.size() > 0) {
             String url = urls.removeFirst();
 
@@ -58,6 +53,21 @@ public class Searcher {
             Thread.sleep(1000);
         }
     }
+    public static void getConnection() {
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            Connection con = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/kurs", "root", "TestTest12345$");
+        //here sonoo is database name, root is username and password
+            Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery("select * from articles");
+            while (rs.next())
+                System.out.println(rs.getString(1) + "  " + rs.getString(2) + "  " + rs.getString(3));
+            con.close();
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
 
     // TODO додати справжню реалізацію
     private static PageInfo processPage(String url) {
@@ -70,7 +80,8 @@ public class Searcher {
             Map<String, List<String>> words = new HashMap<>();
             List<String> links = new ArrayList<>();
             Document doc = Jsoup.connect("https://www.kpi.kharkov.ua/").get();
-            System.out.println(doc.title());
+            var alinks = doc.select("a").stream().map(x->x.attr("href")).filter(x-> x.contains("https://www.kpi.kharkov.ua/")).toArray();
+            var title1 = doc.title();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
                 String line;
 
