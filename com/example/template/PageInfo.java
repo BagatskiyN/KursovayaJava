@@ -7,7 +7,7 @@ public class PageInfo {
     private String url;
     private String title;
     private Map<String, List<String>> words;
-    private List<String> links;
+    private List<Link> links;
 
     public String getUrl() {
         return url;
@@ -33,11 +33,11 @@ public class PageInfo {
         this.words = words;
     }
 
-    public List<String> getLinks() {
+    public List<Link> getLinks() {
         return links;
     }
 
-    public void setLinks(List<String> links) {
+    public void setLinks(List<Link> links) {
         this.links = links;
     }
 }

@@ -17,19 +17,19 @@ import static java.rmi.server.LogStream.log;
 
 public class Searcher {
     public static void main(String[] args) throws InterruptedException {
-        Deque<String> urls = new LinkedList<>();
-        urls.add("https://www.kpi.kharkov.ua");
+        Deque<Link> urls = new LinkedList<>();
+        urls.add(new Link("https://www.kpi.kharkov.ua", false));
         while (urls.size() > 0) {
-            String url = urls.removeFirst();
+            Link url = urls.stream().filter(x -> x.getIsUsed() == false).findFirst().get();
 
-            PageInfo pageInfo = processPage(url);
+            PageInfo pageInfo = processPage(url, args[0]);
             if (pageInfo == null) {
                 // TODO якщо сторінка не була опрацьована,
                 //      тоді необхідно опрацювати її пізніше
                 System.out.println("URL failed : " + url);
                 continue;
             }
-
+            url.setIsUsed(true);
             System.out.println("URL   : " + pageInfo.getUrl());
             System.out.println("Title : " + pageInfo.getTitle());
             System.out.println("Words : " + pageInfo.getWords().size() + ", " + pageInfo.getWords().keySet());
@@ -37,10 +37,9 @@ public class Searcher {
 
             // TODO зберегти url сторінки, ії заголовок та іншу
             //      необхідну інформацію в базу даних
-                addNewWord("cont", "title", "url");
-//            pageInfo.getWords().forEach((word, strings) -> {
-//                strings.forEach( x -> addNewWord(word, x, url));
-//            });
+            pageInfo.getWords().forEach((word, strings) -> {
+                strings.forEach( x -> addNewWord(word, x, url.getUrl()));
+            });
 
             // TODO необхідно вжити запобіжний захід, щоб уникнути
             //      повторне сканування однакових сторінок
@@ -69,21 +68,27 @@ public class Searcher {
     }
 
     // TODO додати справжню реалізацію
-    private static PageInfo processPage(String url) {
+    private static PageInfo processPage(Link url, String searchStr) {
         URLConnection connection = null;
 
         try {
-            connection = new URL(url).openConnection();
+            connection = new URL(url.getUrl()).openConnection();
 
             String title = null;
             Map<String, List<String>> words = new HashMap<>();
-            List<String> links = new ArrayList<>();
-            Document doc = Jsoup.connect("https://www.kpi.kharkov.ua/").get();
-            var alinks = doc.select("a").stream().map(x->x.attr("href")).filter(x-> x.contains("https://www.kpi.kharkov.ua/")).toArray();
+            List<Link> links = new ArrayList<>();
+            Document doc = Jsoup.connect(url.getUrl()).get();
+            links = doc.select("a")
+                    .stream()
+                    .map(x->x.attr("href"))
+                    .filter(x-> x.contains("https://www.kpi.kharkov.ua/"))
+                    .map(x -> new Link(x, false))
+                    .toList();
             var title1 = doc.title();
-
+            var data = doc.text();
+            words = getWords(doc.text(),searchStr);
             PageInfo result = new PageInfo();
-            result.setUrl(url);
+            result.setUrl(url.getUrl());
             result.setTitle("title");
             result.setWords(words);
             result.setLinks(links);
@@ -98,21 +103,31 @@ public class Searcher {
         }
     }
 
-    public Map<String, List<String>> getWords(String str, String find) {
+    public static Map<String, List<String>> getWords(String str, String find) {
 
+        List<String> searchList = new ArrayList<>();
+        find = find.toLowerCase();
+        str = str.toLowerCase();
+        int countWords = 2;
         String[] sp = str.split(" +"); // "+" for multiple spaces
-        for (int i = 2; i < sp.length; i++) {
+        for (int i = 0; i < sp.length; i++) {
             if (sp[i].equals(find)) {
-                // have to check for ArrayIndexOutOfBoundsException
-                String surr = (i-2 > 0 ? sp[i-2]+" " : "") +
-                        (i-1 > 0 ? sp[i-1]+" " : "") +
-                        sp[i] +
-                        (i+1 < sp.length ? " "+sp[i+1] : "") +
-                        (i+2 < sp.length ? " "+sp[i+2] : "");
-                System.out.println(surr);
+
+                String before = "";
+                for (int j = countWords; j > 0; j--) {
+                    if(i-j >= 0) before += sp[i-j]+" ";
+                }
+
+                String after = "";
+                for (int j = 1; j <= countWords; j++) {
+                    if(i+j < sp.length) after += " " + sp[i+j];
+                }
+                String searhResult = before + find + after;
+                searchList.add(searhResult);
             }
         }
-        List<String> resList =  Arrays.stream(sp).toList();
+
+        List<String> resList =  searchList.stream().toList();
         var res = new HashMap<String, List<String>>();
         res.put(find,resList);
         return res;

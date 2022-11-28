@@ -8,9 +8,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -104,9 +108,34 @@ public class Presenter {
         sb.append("</body></html>");
         return sb.toString();
     }
-
+    public static void getRe(String content, String title, String url) {
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            Connection con = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/kurs", "root", "TestTest12345$");
+            //here sonoo is database name, root is username and password
+            Statement stmt = con.createStatement();
+            UUID Id = UUID.randomUUID();
+            int rows = stmt.executeUpdate("INSERT into articles (Id, Content, Title, Url) VALUES ('"+Id+"', '"+content+"', '"+title+"', '"+url+"')");
+            System.out.printf("Added %d rows", rows);
+            con.close();
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
     // TODO додати справжню реалізацію
     private static List<ResultEntry> getSearchResults(String query) {
+
+        var args = new String[1];
+        args[0]= query;
+        try {
+            Searcher.main(args);
+        }
+        catch (InterruptedException ex)
+        {
+            System.out.println("Error");
+        }
+
         ResultEntry e1 = new ResultEntry();
         e1.setUrl("https://www.kpi.kharkov.ua/ukr/department/informatsijni-systemy-ta-tehnologiyi");
         e1.setTitle("Інформаційні системи та технології");
