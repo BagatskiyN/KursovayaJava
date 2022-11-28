@@ -56,6 +56,7 @@ public class Presenter {
                         writer.println("");
                         writer.println(page);
                     } else if (line.startsWith("GET /search?query=")) {
+                    } else if (line.startsWith("GET /search?query=")) {
                         String query = URLDecoder.decode(line.substring("GET /search?query=".length(), line.lastIndexOf(' ')), StandardCharsets.UTF_8.name());
                         String queryEscaped = query.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
                         String page = getHtmlSearchResults(query, queryEscaped);
