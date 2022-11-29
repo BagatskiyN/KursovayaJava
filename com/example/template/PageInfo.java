@@ -9,6 +9,8 @@ public class PageInfo {
     private Map<String, List<String>> words;
     private List<Link> links;
 
+    private String text;
+
     public String getUrl() {
         return url;
     }
@@ -17,6 +19,13 @@ public class PageInfo {
         this.url = url;
     }
 
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
+    }
     public String getTitle() {
         return title;
     }

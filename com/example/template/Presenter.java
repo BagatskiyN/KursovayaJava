@@ -11,10 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -59,7 +56,6 @@ public class Presenter {
                         writer.println("Content-Length: " + page.getBytes(StandardCharsets.UTF_8).length);
                         writer.println("");
                         writer.println(page);
-                    } else if (line.startsWith("GET /search?query=")) {
                     } else if (line.startsWith("GET /search?query=")) {
                         String query = URLDecoder.decode(line.substring("GET /search?query=".length(), line.lastIndexOf(' ')), StandardCharsets.UTF_8.name());
                         String queryEscaped = query.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -108,7 +104,8 @@ public class Presenter {
         sb.append("</body></html>");
         return sb.toString();
     }
-    public static void getRe(String content, String title, String url) {
+    public static List<ResultEntry> getArticles(String search) {
+        List<ResultEntry> result = new ArrayList<>();
         try {
             Class.forName("com.mysql.jdbc.Driver");
             Connection con = DriverManager.getConnection(
@@ -116,13 +113,32 @@ public class Presenter {
             //here sonoo is database name, root is username and password
             Statement stmt = con.createStatement();
             UUID Id = UUID.randomUUID();
-            int rows = stmt.executeUpdate("INSERT into articles (Id, Content, Title, Url) VALUES ('"+Id+"', '"+content+"', '"+title+"', '"+url+"')");
-            System.out.printf("Added %d rows", rows);
+            var rs = stmt.executeQuery("SELECT url, COUNT(*) FROM articles \n" +
+                    "where Word Like '"+ search +
+                    "' GROUP BY url;\n" + "order by COUNT(*) desc;");
+            System.out.printf("Found", rs);
+            while (rs.next()) {
+                var resEnt = stmt.executeQuery("SELECT * FROM kurs.articles where Url like '" + rs.getString("Url")+"' Limit 1");
+                while (resEnt.next()) {
+                    ResultEntry resultEntry = new ResultEntry();
+                    resultEntry.setUrl(resEnt.getString("Url"));
+                    resultEntry.setTitle(resEnt.getString("Title"));
+                    if (resEnt.getString("Text").length() <= 350) {
+                        resultEntry.setDescription(resEnt.getString("Text"));
+
+                    } else {
+                        resultEntry.setDescription(resEnt.getString("Text").substring(0, 350) + "...");
+                    }
+                    result.add(resultEntry);
+                }
+            }
             con.close();
         } catch (Exception e) {
             System.out.println(e);
         }
+        return  result;
     }
+
     // TODO додати справжню реалізацію
     private static List<ResultEntry> getSearchResults(String query) {
 
@@ -136,27 +152,6 @@ public class Presenter {
             System.out.println("Error");
         }
 
-        ResultEntry e1 = new ResultEntry();
-        e1.setUrl("https://www.kpi.kharkov.ua/ukr/department/informatsijni-systemy-ta-tehnologiyi");
-        e1.setTitle("Інформаційні системи та технології");
-        e1.setDescription("Кафедра інформаційних систем та технологій заснована у січні 2022 року на базі кафедри програмної інженерії та інформаційних систем управління з метою підготовки спеціалістів за спеціальністю 126 – «Інформаційні системи та технології».");
-
-        ResultEntry e2 = new ResultEntry();
-        e2.setUrl("https://web.kpi.kharkov.ua/ist/uk/2022/05/01/uk-active-interaction-of-ntu-khpi-with-bratislava-university-of-economics-and-management");
-        e2.setTitle("Активна взаємодія НТУ “ХПІ” з Братиславським університетом економіки та менеджменту");
-        e2.setDescription("Наступного тижня запланована онлайн-зустріч з бакалаврами 3 та 4 курсів українських університетів, які планують продовжувати навчання в магістратурі за освітньою програмою 126 «програмне забезпечення інформаційних систем», з метою обговорення вже більш конкретних кроків допомоги українським вишам та їх студентам.");
-
-        switch ((int) (Math.random() * 5)) {
-            case 1:
-                return Collections.singletonList(e1);
-            case 2:
-                return Collections.singletonList(e2);
-            case 3:
-                return Arrays.asList(e1, e2);
-            case 4:
-                return Arrays.asList(e2, e1);
-            default:
-                return Collections.emptyList();
-        }
+       return  getArticles(query);
     }
 }

@@ -17,11 +17,13 @@ import static java.rmi.server.LogStream.log;
 
 public class Searcher {
     public static void main(String[] args) throws InterruptedException {
-        Deque<Link> urls = new LinkedList<>();
+        List<Link> urls = new ArrayList<>();
         urls.add(new Link("https://www.kpi.kharkov.ua", false));
-        while (urls.size() > 0) {
+        long start = System.currentTimeMillis();
+        long end = start + 9000;
+        while (urls.stream().filter(x-> x.getIsUsed()==false).toList().size() > 0 && System.currentTimeMillis() < end) {
             Link url = urls.stream().filter(x -> x.getIsUsed() == false).findFirst().get();
-
+            System.out.println(System.currentTimeMillis() < end);
             PageInfo pageInfo = processPage(url, args[0]);
             if (pageInfo == null) {
                 // TODO якщо сторінка не була опрацьована,
@@ -32,26 +34,43 @@ public class Searcher {
             url.setIsUsed(true);
             System.out.println("URL   : " + pageInfo.getUrl());
             System.out.println("Title : " + pageInfo.getTitle());
-            System.out.println("Words : " + pageInfo.getWords().size() + ", " + pageInfo.getWords().keySet());
-            System.out.println("Links : " + pageInfo.getLinks().size());
-
+            if(pageInfo.getWords() != null)
+            {
+                System.out.println("Words : " + pageInfo.getWords().size() + ", " + pageInfo.getWords().keySet());
+            }
+            if(pageInfo.getLinks() != null)
+            {
+                System.out.println("Links : " + pageInfo.getLinks().size());
+            }
             // TODO зберегти url сторінки, ії заголовок та іншу
             //      необхідну інформацію в базу даних
             pageInfo.getWords().forEach((word, strings) -> {
-                strings.forEach( x -> addNewWord(word, x, url.getUrl()));
+                strings.forEach( x -> addNewWord(x, pageInfo.getTitle(), url.getUrl(), word, pageInfo.getText()));
             });
 
             // TODO необхідно вжити запобіжний захід, щоб уникнути
             //      повторне сканування однакових сторінок
-            urls.addAll(pageInfo.getLinks());
-
-            // TODO затримка для запобігання блокування зі сторони сервера
-            //      використання Thread.sleep() не бажано використовувати,
-            //      замість цього метода необхідно використовувати інші засоби
-            Thread.sleep(1000);
+            if(pageInfo.getLinks()!=null)
+            {
+                urls = addUniqueLink(urls, pageInfo.getLinks());
+            }
+            Thread.sleep(50);
         }
     }
-    public static void addNewWord(String content, String title, String url) {
+
+    public  static List<Link> addUniqueLink(List<Link> links, List<Link> newLinks)
+    {
+        newLinks.forEach((x)->
+        {
+            if(!links.stream().map(p->p.getUrl()).toList().contains(x.getUrl()))
+            {
+                links.add(x);
+            }
+        });
+        return  links;
+    }
+
+    public static void addNewWord(String content, String title, String url, String word, String text) {
         try {
             Class.forName("com.mysql.jdbc.Driver");
             Connection con = DriverManager.getConnection(
@@ -59,7 +78,7 @@ public class Searcher {
         //here sonoo is database name, root is username and password
             Statement stmt = con.createStatement();
             UUID Id = UUID.randomUUID();;
-            int rows = stmt.executeUpdate("INSERT into articles (Id, Content, Title, Url) VALUES ('"+Id+"', '"+content+"', '"+title+"', '"+url+"')");
+            int rows = stmt.executeUpdate("INSERT into articles (Id, Content, Title, Url, Word, Text) VALUES ('"+Id+"', '"+content+"', '"+title+"', '"+url+"', '"+word+"', '"+text+"')");
             System.out.printf("Added %d rows", rows);
             con.close();
         } catch (Exception e) {
@@ -85,13 +104,13 @@ public class Searcher {
                     .map(x -> new Link(x, false))
                     .toList();
             var title1 = doc.title();
-            var data = doc.text();
             words = getWords(doc.text(),searchStr);
             PageInfo result = new PageInfo();
             result.setUrl(url.getUrl());
-            result.setTitle("title");
+            result.setTitle(doc.title());
             result.setWords(words);
             result.setLinks(links);
+            result.setText(doc.text());
             return result;
         } catch (IOException ex) {
             ex.printStackTrace();
