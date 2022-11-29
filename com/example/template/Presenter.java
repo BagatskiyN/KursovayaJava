@@ -113,12 +113,18 @@ public class Presenter {
             //here sonoo is database name, root is username and password
             Statement stmt = con.createStatement();
             UUID Id = UUID.randomUUID();
-            var rs = stmt.executeQuery("SELECT url, COUNT(*) FROM articles \n" +
+            var rs = stmt.executeQuery("SELECT url, COUNT(*) AS Count  FROM articles \n" +
                     "where Word Like '"+ search +
-                    "' GROUP BY url;\n" + "order by COUNT(*) desc;");
+                    "' GROUP BY url\n" + "order by Count desc;");
             System.out.printf("Found", rs);
+            List<LinkSearchResult> linkSearchResults = new ArrayList<>();
+
             while (rs.next()) {
-                var resEnt = stmt.executeQuery("SELECT * FROM kurs.articles where Url like '" + rs.getString("Url")+"' Limit 1");
+                linkSearchResults.add(new LinkSearchResult(rs.getString("url"),rs.getInt("Count")));
+            }
+            for(var i=0; i<linkSearchResults.size(); i++)
+            {
+                var resEnt = stmt.executeQuery("SELECT * FROM kurs.articles where Url like '" + linkSearchResults.get(i).getUrl()+"' Limit 1");
                 while (resEnt.next()) {
                     ResultEntry resultEntry = new ResultEntry();
                     resultEntry.setUrl(resEnt.getString("Url"));
@@ -130,8 +136,10 @@ public class Presenter {
                         resultEntry.setDescription(resEnt.getString("Text").substring(0, 350) + "...");
                     }
                     result.add(resultEntry);
-                }
+                };
             }
+
+
             con.close();
         } catch (Exception e) {
             System.out.println(e);
